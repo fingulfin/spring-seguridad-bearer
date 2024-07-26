@@ -1,67 +1,81 @@
 package educarvr.spring_seguridad_bearer;
 
-import org.springframework.boot.jdbc.DataSourceBuilder;
-import org.springframework.context.annotation.Bean;
+
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.config.Customizer;
+import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
+import org.springframework.security.authentication.AuthenticationManager;
+import org.springframework.security.config.annotation.authentication.builders.AuthenticationManagerBuilder;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
-import org.springframework.security.core.userdetails.UserDetailsService;
-import org.springframework.security.provisioning.JdbcUserDetailsManager;
+import org.springframework.security.config.http.SessionCreationPolicy;
+import org.springframework.security.crypto.password.NoOpPasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
+import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
+import org.springframework.web.cors.CorsConfiguration;
+import org.springframework.web.cors.CorsConfigurationSource;
+import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 
-import javax.sql.DataSource;
+import java.util.Arrays;
 
 @Configuration
 @EnableWebSecurity
 public class SecurityConfig {
+    private final CustomUserDetailsService userDetailsService;
+    private final JwtAuthorizationFilter jwtAuthorizationFilter;
 
+    public SecurityConfig(CustomUserDetailsService customUserDetailsService, JwtAuthorizationFilter jwtAuthorizationFilter) {
+        this.userDetailsService = customUserDetailsService;
+        this.jwtAuthorizationFilter = jwtAuthorizationFilter;
 
-    @Bean
-    public DataSource getDataSource() {
-        DataSourceBuilder dataSourceBuilder = DataSourceBuilder.create();
-        dataSourceBuilder.driverClassName("com.mysql.jdbc.Driver");
-        dataSourceBuilder.url("jdbc:mysql://srv484.hstgr.io/u375466133_c5Hvp");
-        dataSourceBuilder.username("u375466133_gMGwk");
-        dataSourceBuilder.password("Gera2024v2");
-        return dataSourceBuilder.build();
     }
     @Bean
-    public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
-        http
-                .authorizeHttpRequests((authorize) -> authorize
-                        .requestMatchers("/resource/**").hasAnyAuthority("ADMIN")
-                        .anyRequest().authenticated()
+    public AuthenticationManager authenticationManager(HttpSecurity http, NoOpPasswordEncoder noOpPasswordEncoder)
+            throws Exception {
+        AuthenticationManagerBuilder authenticationManagerBuilder = http.getSharedObject(AuthenticationManagerBuilder.class);
+        authenticationManagerBuilder.userDetailsService(userDetailsService).passwordEncoder(noOpPasswordEncoder);
+        return authenticationManagerBuilder.build();
+    }
 
-                )
-                .httpBasic(Customizer.withDefaults())
-                .formLogin(Customizer.withDefaults());
+
+    @Bean
+    public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
+http.csrf((csrf) -> csrf
+                .disable()
+        )
+
+
+     //   http.csrf().disable()
+
+
+                .authorizeRequests()
+        .requestMatchers("/resource/**", "/signup", "/about","/static/**").permitAll()
+
+        .requestMatchers("/rest/auth/**").permitAll()
+        .anyRequest().denyAll()
+               .and() .sessionManagement((session) -> session
+                .sessionCreationPolicy(SessionCreationPolicy.ALWAYS));
+                http.addFilterBefore(jwtAuthorizationFilter,UsernamePasswordAuthenticationFilter.class);
+
+
+                // ...
+
+
 
         return http.build();
     }
 
-    @Bean
-    public UserDetailsService userDetailsService() {
-        /*  La primera vez generas el UserDetal y los agregas al  dataSource con el
-           createUser, ya despues no es neesrio por eso estan comentados.
 
-        UserDetails user1 = User.withDefaultPasswordEncoder()
-                .username("juan")
-                .password("topo")
-                .roles("USER")
-                .build();
-        UserDetails admin = User.withDefaultPasswordEncoder()
-                .username("admin")
-                .password("conejo")
-                .roles("USER", "ADMIN")
-                .build();
-*/
-       // System.out.println("ESTO SE EJECUTA AL  HACER LA AUTENTICACION PSWD: "+user1.getPassword());
-        JdbcUserDetailsManager users = new JdbcUserDetailsManager(getDataSource());
-      // users.createUser(user1);
-      //  users.createUser(admin);
-       // return new InMemoryUserDetailsManager(userDetails);
-        return users;
+    @SuppressWarnings("deprecation")
+    @Bean
+    public NoOpPasswordEncoder passwordEncoder() {
+        return (NoOpPasswordEncoder) NoOpPasswordEncoder.getInstance();
     }
+
+
+
+
 
 }
