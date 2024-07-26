@@ -54,7 +54,7 @@ http.csrf((csrf) -> csrf
         .requestMatchers("/resource/**", "/signup", "/about","/static/**").permitAll()
 
         .requestMatchers("/rest/auth/**").permitAll()
-        .anyRequest().denyAll()
+        .anyRequest().authenticated()
                .and() .sessionManagement((session) -> session
                 .sessionCreationPolicy(SessionCreationPolicy.STATELESS));
                 http.addFilterBefore(jwtAuthorizationFilter,UsernamePasswordAuthenticationFilter.class);
